@@ -1,4 +1,7 @@
 from django.shortcuts import render, redirect
+from django.contrib import messages
+from django.contrib.auth.models import User
+from django.contrib.auth import authenticate, login, logout
 from django.db.models import Q
 from .models import Room, Topic
 from .forms import RoomForm
@@ -74,3 +77,30 @@ def deleteRoom(request, pk):
         'obj': room,
     }
     return render(request, 'base/delete.html', context)
+
+
+def loginpage(request):
+    if request.method == 'POST': # get the user and the password
+        username = request.POST.get('username')
+        password = request.POST.get('password')
+        # Check if the user exist
+        try: 
+            user = User.objects.get(username=username)
+        except:
+            messages.error(request, 'User Does Not Exist')
+        # if the user does not exist then check the credition are correct
+        user = authenticate(request, username=username, password=password)
+        # Log the user in
+        if user is not None: 
+            login(request, user) # create a session in the database
+            return redirect('home')
+        else: # if the user is not loggid in
+            messages.error(request, 'User Or Password not exist')
+            
+    context = {}
+    return render(request, 'base/login_register.html')
+
+
+def logoutUser(request):
+    logout(request)
+    return redirect('home')
