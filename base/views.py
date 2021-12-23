@@ -1,7 +1,9 @@
 from django.shortcuts import render, redirect
+from django.http import HttpResponse
 from django.contrib import messages
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.decorators import login_required
 from django.db.models import Q
 from .models import Room, Topic
 from .forms import RoomForm
@@ -17,7 +19,6 @@ def home(request):
     )
 
     room_count = rooms.count()
-
     topics = Topic.objects.all()
 
     context = {
@@ -36,6 +37,7 @@ def room(request, pk):
     return render(request, 'base/room.html', context)
 
 
+@login_required(login_url='login')
 def createRoom(request):
     form = RoomForm()
     if request.method == "POST":
@@ -50,9 +52,13 @@ def createRoom(request):
     return render(request, 'base/room_form.html', context)
 
 
+@login_required(login_url='login')
 def updateRoom(request, pk):
     room = Room.objects.get(id=pk)
     form = RoomForm(instance=room)
+
+    if request.user != room.host:
+        return HttpResponse('You Are Not Alowwed to Update The Room content')
 
     if request.method == 'POST':
         form = RoomForm(request.POST, instance=room)
@@ -66,8 +72,12 @@ def updateRoom(request, pk):
     return render(request, 'base/room_form.html', context)
 
 
+@login_required(login_url='login')
 def deleteRoom(request, pk):
     room = Room.objects.get(id=pk)
+
+    if request.user != room.host:
+        return HttpResponse('You Are Not Alowwed to Update The Room content')
 
     if request.method == 'POST':
         room.delete()
@@ -80,23 +90,27 @@ def deleteRoom(request, pk):
 
 
 def loginpage(request):
-    if request.method == 'POST': # get the user and the password
+
+    if request.user.is_authenticated:
+        return redirect('home')
+
+    if request.method == 'POST':  # get the user and the password
         username = request.POST.get('username')
         password = request.POST.get('password')
         # Check if the user exist
-        try: 
+        try:
             user = User.objects.get(username=username)
         except:
             messages.error(request, 'User Does Not Exist')
         # if the user does not exist then check the credition are correct
         user = authenticate(request, username=username, password=password)
         # Log the user in
-        if user is not None: 
-            login(request, user) # create a session in the database
+        if user is not None:
+            login(request, user)  # create a session in the database
             return redirect('home')
-        else: # if the user is not loggid in
+        else:  # if the user is not loggid in
             messages.error(request, 'User Or Password not exist')
-            
+
     context = {}
     return render(request, 'base/login_register.html')
 
